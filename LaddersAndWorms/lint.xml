@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lint>
+    <issue id="NewApi">
+        <ignore path="gen/com/project/laddersandworms/controller/GameController.java" />
+        <ignore path="src/com/project/laddersandworms/MainActivity.java" />
+    </issue>
+</lint>

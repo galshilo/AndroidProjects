@@ -1,0 +1,50 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_menu"
+    android:orientation="vertical"
+    tools:context=".MenuActivity" >
+
+	<ImageView
+	    android:layout_width="wrap_content"
+	    android:layout_height="wrap_content"
+	    android:src="@drawable/img_title" />
+
+	<ImageView
+	    android:layout_width="wrap_content"
+	    android:layout_height="wrap_content"
+	    android:src="@drawable/img_title_soldier"
+        android:layout_gravity="center"
+        android:layout_marginTop="-60dip"
+        android:layout_marginRight="12dip"
+        android:maxWidth="65dip"
+        android:maxHeight="65dip" 
+        android:adjustViewBounds="true"
+        android:layout_marginBottom="40dip" 
+        />
+
+    <Button
+        android:id="@+id/btnNewGame"
+        android:layout_width="164dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:layout_marginBottom="20dip"
+        android:background="@drawable/btn_newgame" />
+
+    <Button
+        android:id="@+id/btnOptions"
+        android:layout_width="164dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:layout_marginBottom="20dip"
+        android:background="@drawable/btn_options" />
+
+    <Button
+        android:id="@+id/btnScores"
+        android:layout_width="164dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:background="@drawable/btn_scores" />
+
+</LinearLayout>
