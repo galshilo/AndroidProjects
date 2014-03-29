@@ -8,7 +8,7 @@ import android.view.View.OnClickListener;
 import android.widget.ImageView;
 import com.project.laddersandworms.controller.GameController;
 
-public class MainActivity extends Activity {
+public class MainActivity extends Activity implements OnClickListener {
 
 	private ImageView imageViewDice, imageViewPlayerSoldier, imageViewPlayerPC;
 	private GameController _controller;
@@ -22,20 +22,7 @@ public class MainActivity extends Activity {
 		imageViewDice = (ImageView) findViewById(R.id.imageViewDice);
 		imageViewPlayerSoldier = (ImageView) findViewById(R.id.imageViewPlayer);
 		imageViewPlayerPC = (ImageView) findViewById(R.id.imageViewPC);
-		imageViewDice.setOnClickListener(new OnClickListener() {
-
-			@Override
-			public void onClick(View v) {
-				try {
-					_controller.rollDice();
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
-				_controller.setImagePosition(imageViewPlayerPC,
-						imageViewPlayerPC.getX() + 104,
-						imageViewPlayerPC.getY());
-			}
-		});
+		imageViewDice.setOnClickListener(this);
 	}
 
 	@Override
@@ -54,5 +41,18 @@ public class MainActivity extends Activity {
 
 	public ImageView getPCView() {
 		return this.imageViewPlayerPC;
+	}
+
+	@Override
+	public void onClick(View v) {
+		if (v.getId() == R.id.imageViewDice) {
+			try {
+				_controller.rollDice();
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+			_controller.setImagePosition(imageViewPlayerPC,
+					imageViewPlayerPC.getX() + 104, imageViewPlayerPC.getY());
+		}
 	}
 }
