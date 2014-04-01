@@ -1,38 +1,65 @@
 package com.project.laddersandworms.entities;
 
+import java.util.Random;
+
+import android.graphics.Point;
+
 public class Board {
 	private final int BOARD_ROWS = 10;
 	private final int BOARD_COLUMNS = 7;
+	private final int BOARD_SQUARE_RATIO_X = 104;
+	private final int BOARD_SQUARE_RATIO_Y = 90;
+	private final int MIDDLE_SQUARE_X = 20;
+	private final int MIDDLE_SQUARE_Y = 17;
 	private Position[] board;
 	private int level;
+	private Random rand;
 
-	public Board(int level) {
+	public Board(final int level) {
 		this.board = new Position[BOARD_ROWS * BOARD_COLUMNS + 1];
 		this.level = level;
+		this.rand = new Random();
 		init();
 	}
-
+	
 	public void init() {
-		for (int x = 1; x <= BOARD_ROWS; x++) {
-			for (int y = 1; y <= BOARD_COLUMNS; y++) {
-				board[x * y] = new Position(x, y, this.level);
+		int counter = 1;
+		for (int y = 1; y <= BOARD_ROWS; y++) {
+			for (int x = 0; x < BOARD_COLUMNS; x++) {
+					board[counter++] = new Position(y % 2 == 1 ?
+							x * BOARD_SQUARE_RATIO_X + MIDDLE_SQUARE_X :
+						((BOARD_COLUMNS - 1) * BOARD_SQUARE_RATIO_X) - (x * BOARD_SQUARE_RATIO_X) + MIDDLE_SQUARE_X,
+						(BOARD_ROWS * BOARD_SQUARE_RATIO_Y)	- (y * BOARD_SQUARE_RATIO_Y) + MIDDLE_SQUARE_Y, this.level);
 			}
 		}
+		
+		
+	}
+
+	public int generateWeapon(){
+		if (rand.nextInt((int)(10/this.level)) == 0){
+			int position = rand.nextInt(BOARD_ROWS * BOARD_COLUMNS) + 1;
+			if (board[position].getObstacle() == Obstacle.NONE){
+				board[position].setObstacle(Obstacle.BAZOOKA);
+			}
+			return position;
+		}
+		return -1;
 	}
 	
-	public void removePlayerFromPosition(int position){
-		this.board[position].removePlayer();
-	}
-	
-	public void addPlayerToPosition(Player player, int position){
-		this.board[position].addPlayer(player);
-	}
-	
-	public Player getPlayerInPosition(int position){
-		return this.board[position].getPlayer();
-	}
-	
-	public int getFinalPosition(){
+	public int getFinalPosition() {
 		return BOARD_ROWS * BOARD_COLUMNS + 1;
+	}
+
+	public Position getPositionAt(int posNum) {
+		return board[posNum];
+	}
+	
+	public Point getPointnAt(int posNum) {
+		return board[posNum].getPoint();
+	}
+	
+	public Position[] getPositions(){
+		return board;
 	}
 }

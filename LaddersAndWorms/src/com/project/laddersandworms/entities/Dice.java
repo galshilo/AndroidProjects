@@ -7,15 +7,19 @@ public class Dice {
 	
 	private final int NUMBER_OF_SOUNDS = 4;
 	private final int MAX_DICE_VALUE = 6;
-	
+	private int value;
 	private Random rand;
 	
 	public Dice(){
 		this.rand = new Random();
 	}
 	
-	public int roll(){
-    	return  rand.nextInt(MAX_DICE_VALUE) + 1;
+	public void roll(){
+    	this.value = rand.nextInt(MAX_DICE_VALUE) + 1;
+	}
+	
+	public int getValue(){
+		return this.value;
 	}
 	
 	public int getSound(){

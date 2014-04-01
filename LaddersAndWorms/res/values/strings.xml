@@ -6,5 +6,6 @@
     <string name="boardDescription">Game Board</string>
     <string name="title_activity_menu">Worms &amp; Ladders</string>
     <string name="hello_world">Hello world!</string>
+    <string name="playerTurn">Your turn!</string>
 
 </resources>
