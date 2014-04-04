@@ -2,32 +2,41 @@ package com.project.laddersandworms;
 
 import android.app.Activity;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
+import android.util.Log;
 import android.view.Menu;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.ImageView;
-import com.project.laddersandworms.controller.GameController;
+
+import com.project.laddersandworms.controller.Game;
 import com.project.laddersandworms.entities.InvalidPlayerException;
 import com.project.laddersandworms.entities.Player;
-import com.project.laddersandworms.entities.Player.Type;
 
 public class MainActivity extends Activity implements OnClickListener {
 
 	private ImageView imageViewDice, imageViewPlayerSoldier, imageViewPlayerPC, imageViewTurn;
-	private GameController _controller;
+	private Handler handler;
+	private Game _controller;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
+		handler = new Handler();
 		imageViewDice = (ImageView) findViewById(R.id.imageViewDice);
 		imageViewPlayerSoldier = (ImageView) findViewById(R.id.imageViewPlayer);
 		imageViewPlayerPC = (ImageView) findViewById(R.id.imageViewPC);
 		imageViewTurn = (ImageView) findViewById(R.id.imageViewTurn);
 		imageViewDice.setOnClickListener(this);
-		_controller = GameController.getInstance();
+		_controller = Game.getInstance();
 		_controller.setView(this);
-		_controller.init();
+		try {
+			_controller.init();
+		} catch (InvalidPlayerException e) {
+			e.printStackTrace();
+		}
 	}
 
 	@Override
@@ -37,7 +46,10 @@ public class MainActivity extends Activity implements OnClickListener {
 	}
 	
 	
-
+	public Handler getHandler(){
+		return this.handler;
+	}
+	
 	public ImageView getPlayerView(Player.Type type) {
 		switch (type) {
 		case MACHINE:

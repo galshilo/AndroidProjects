@@ -3,12 +3,15 @@ package com.project.laddersandworms.controller;
 import java.util.ArrayList;
 import java.util.Observable;
 import java.util.Observer;
+import java.util.Random;
 
 import android.graphics.Color;
 import android.graphics.Point;
 import android.media.AudioManager;
 import android.media.SoundPool;
 import android.media.SoundPool.OnLoadCompleteListener;
+import android.os.AsyncTask;
+import android.os.Handler;
 import android.util.Log;
 import android.widget.ImageView;
 import android.widget.RelativeLayout;
@@ -24,31 +27,48 @@ import com.project.laddersandworms.entities.Player;
 import com.project.laddersandworms.entities.Player.Type;
 import com.project.laddersandworms.entities.Position;
 
-public class GameController implements Observer, OnLoadCompleteListener {
+public class Game implements Observer, OnLoadCompleteListener {
 
-	private static GameController _instrance = null;
+	private static Game _instrance = null;
 	private final String RAW_IMAGE = "drawable/dice_";
 	private final String RAW_SOUNDS = "raw/sound_dice_";
 	private final int NUMBER_OF_PLAYERS = 2;
+	private final int TURN_DELAY = 1500;
+	
+	public static Object mutex = new Object();
 
 	private Player _currentPlayer;
 	private Dice _dice;
 	private ArrayList<Player> _players;
 	private MainActivity _view;
 	private Board _board;
-	private SoundPool _player;
+	private SoundPool _soundPool;
 
-	private GameController() {
+	public enum Level {
+	    EASY(1), MEDIUM(2), HARD(3);
+
+	    private int numVal;
+
+	    Level(int numVal) {
+	        this.numVal = numVal;
+	    }
+
+	    public int getNumVal() {
+	        return numVal;
+	    }
+	}
+	
+	private Game() {
 		this._players = new ArrayList<Player>(NUMBER_OF_PLAYERS);
 		this._dice = new Dice();
-		this._board = new Board(1);
-		this._player = new SoundPool(5, AudioManager.STREAM_MUSIC, 0);
-		this._player.setOnLoadCompleteListener(this);
+		this._board = new Board(Level.HARD);
+		this._soundPool = new SoundPool(5, AudioManager.STREAM_MUSIC, 0);
+		this._soundPool.setOnLoadCompleteListener(this);
 	}
 
-	public static GameController getInstance() {
+	public static Game getInstance() {
 		if (_instrance == null) {
-			_instrance = new GameController();
+			_instrance = new Game();
 		}
 
 		return _instrance;
@@ -58,25 +78,25 @@ public class GameController implements Observer, OnLoadCompleteListener {
 		this._view = view;
 	}
 
-	public void init() {
+	public void init() throws InvalidPlayerException {
 		initPlayers();
 		initObstacles();
 	}
 
-	private void initPlayers() {
+	private void initPlayers() throws InvalidPlayerException {
 		addPlayer(new Player("Gal", Player.Type.HUMAN));
 		addPlayer(new Player("Dor", Player.Type.MACHINE));
 		for (Player p : _players) {
 			p.setPosition(1);
+			setImagePosition(_view.getPlayerView(p.getType()), _board.getPointnAt(p.getPosition()));
 		}
-		this._currentPlayer = _players.get(0);
-
+		setActivePlayter(_players.get(0));
 	}
 
 	public void rollDice() throws InterruptedException, InvalidPlayerException {
 		animateDice();
 		generateWeapon();
-		movePlayer();
+		movePlayer(_currentPlayer, _dice.getValue());
 	}
 
 	private void animateDice() {
@@ -91,15 +111,26 @@ public class GameController implements Observer, OnLoadCompleteListener {
 		return _board.getPositionAt(pos).getObstacle() == obs;
 	}
 
-	private void handlePositionAction(Player player) {
+	private boolean handlePositionAction(Player player) throws InvalidPlayerException {
 		if (positionHasObstacle(player.getPosition(), Obstacle.BAZOOKA)) {
 			Position pos = _board.getPositionAt(player.getPosition());
-			/* shoot logic here */
+			Log.i("Worms", player.getName() + " stepped on a bazooka!");
 			pos.freeObstacle();
+			hitRival();
+			return true;
 		}
+		return false;
+	}
+	
+	private void hitRival() throws InvalidPlayerException{
+		Player rival = _players.get((_players.indexOf(_currentPlayer) + 1)
+				% NUMBER_OF_PLAYERS);
+		int moves = _currentPlayer.hitRival();
+		Log.i("Worms", _currentPlayer.getName() + " hit the rival with " + moves);
+		movePlayer(rival, moves);
 	}
 
-	private void switchPlayer() throws InterruptedException,
+	public void switchPlayer() throws InterruptedException,
 			InvalidPlayerException {
 		_currentPlayer = _players.get((_players.indexOf(_currentPlayer) + 1)
 				% NUMBER_OF_PLAYERS);
@@ -130,25 +161,25 @@ public class GameController implements Observer, OnLoadCompleteListener {
 			if (pos != null) {
 				if (pos.getObstacle() == Obstacle.BAZOOKA) {
 					pos.setView(generateImageView(R.drawable.img_bazooka));
-					drawImage(pos.getPoint(), pos.getView());
+					drawImage(pos, pos.getView());
 				}
 			}
 		}
 	}
 
-	private void drawImage(final Point point, final ImageView view) {
+	private void drawImage(final Position pos, final ImageView view) {
 		final RelativeLayout layout = (RelativeLayout) _view
 				.findViewById(R.id.layoutGameBoard);
 		view.setMaxHeight(30);
 		view.setMaxWidth(30);
-		setImagePosition(view, point);
+		setImagePosition(view, pos.getPoint());
 		layout.post(new Runnable() {
 
 			@Override
 			public void run() {
 				layout.addView(view);
 				layout.invalidate();
-				Log.i("Worms", "Added bazooka to point: " + point.toString());
+				Log.i("Worms", "Added bazooka to point: " + pos.getId());
 			}
 		});
 	}
@@ -159,7 +190,7 @@ public class GameController implements Observer, OnLoadCompleteListener {
 			return;
 
 		ImageView view = generateImageView(R.drawable.img_bazooka);
-		drawImage(_board.getPointnAt(square), view);
+		drawImage(_board.getPositionAt(square), view);
 		_board.getPositionAt(square).setView(view);
 	}
 
@@ -177,20 +208,38 @@ public class GameController implements Observer, OnLoadCompleteListener {
 		}, 250);
 	}
 
-	public void movePlayer() throws InvalidPlayerException {
-		ImageView currentView = _view.getPlayerView(_currentPlayer.getType());
+	public void movePlayer(final Player player, int moves) throws InvalidPlayerException {
+		final ImageView currentView = _view.getPlayerView(player.getType());
 		if (currentView == null) {
 			throw new InvalidPlayerException();
 		}
-
-		Log.i("Worms", "moving player " + _currentPlayer.getName());
-		_currentPlayer.setPosition(_currentPlayer.getPosition()
-				+ _dice.getValue());
-		Point playerPosition = _board.getPositionAt(
-				_currentPlayer.getPosition()).getPoint();
-		setImagePosition(currentView, playerPosition);
-		handlePositionAction(_currentPlayer);
-		_currentPlayer.notifyObservers();
+		final int lastPosition = player.getPosition();
+		player.setPosition(player.getPosition()	+ moves);
+		final int currentPosition = player.getPosition();
+//		final Point playerPosition = _board.getPositionAt(
+//				player.getPosition()).getPoint();
+		_view.getHandler().post(new Runnable() {
+			
+			@Override
+			public void run() {
+				Log.i("Worms", "moving player " + player.getName() + " to " + player.getPosition());
+				//setImagePosition(currentView, playerPosition);
+				try {
+					moveImage(currentView,lastPosition,currentPosition);
+				} catch (InterruptedException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
+				try {
+					if (handlePositionAction(player)){
+						return;
+					}
+				} catch (InvalidPlayerException e) {
+					e.printStackTrace();
+				}	
+				player.notifyObservers();
+			}
+		});
 	}
 
 	public void addPlayer(Player p) {
@@ -203,7 +252,7 @@ public class GameController implements Observer, OnLoadCompleteListener {
 	}
 
 	private void playSound(int id) {
-		_player.load(_view, id, 1);
+		_soundPool.load(_view, id, 1);
 	}
 
 	private int getResourceId(String path) {
@@ -215,7 +264,7 @@ public class GameController implements Observer, OnLoadCompleteListener {
 	public void setImagePosition(final ImageView img, final float x,
 			final float y) {
 		img.post(new Runnable() {
-
+			
 			@Override
 			public void run() {
 				img.setX(x);
@@ -223,10 +272,53 @@ public class GameController implements Observer, OnLoadCompleteListener {
 			}
 		});
 	}
+	
+	public void moveImage(final ImageView img, int lastPosistion, int currentPosition) throws InterruptedException{
+		int sourceX = _board.getPointnAt(lastPosistion).x;
+		int sourceY = _board.getPointnAt(lastPosistion).y;
+		int destenationX = _board.getPointnAt(currentPosition).x;
+		int destenationY = _board.getPointnAt(currentPosition).y;
+		final int dx = (destenationX - sourceX)/10;
+		final int dy = (destenationY - sourceY)/10;
+		new AsyncTask<Integer, Integer, Integer>() {
+
+			@Override
+			protected void onPostExecute(Integer result) {
+				// TODO Auto-generated method stub
+				super.onPostExecute(result);
+			}
+
+			@Override
+			protected Integer doInBackground(Integer... params) {
+				for (int i = 0;i < 6;i++){
+					int posX = params[0];
+					int posY = params[1];
+					posX += dx;
+					posY += dy;
+					onProgressUpdate(posX, posY);
+					try {
+						Thread.sleep(50);
+					} catch (InterruptedException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				}
+				return null;
+			}
+
+			@Override
+			protected void onProgressUpdate(Integer... values) {
+				super.onProgressUpdate(values);
+				setImagePosition(img ,new Point(values[0], values[1]));
+
+			}
+		}.execute(sourceX,sourceY);
+		
+	}
 
 	public void setImagePosition(final ImageView img, final Point pos) {
 		img.post(new Runnable() {
-
+			
 			@Override
 			public void run() {
 				img.setX(pos.x);
@@ -242,7 +334,11 @@ public class GameController implements Observer, OnLoadCompleteListener {
 	@Override
 	public void update(Observable observable, Object data) {
 		try {
-			switchPlayer();
+			Thread.sleep(TURN_DELAY);
+			if (_currentPlayer.getPosition() == Board.getFinalPosition()){
+				playSound(R.raw.sound_victory);
+			}
+			switchPlayer();		
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		} catch (InvalidPlayerException e) {
@@ -253,7 +349,7 @@ public class GameController implements Observer, OnLoadCompleteListener {
 
 	@Override
 	public void onLoadComplete(SoundPool soundPool, int sampleId, int status) {
-		soundPool.play(sampleId, 1, 1, 0, 0, 1);		
+		soundPool.play(sampleId, 1, 1, 0, 0, 1);
 	}
 
 }

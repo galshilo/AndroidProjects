@@ -2,25 +2,26 @@ package com.project.laddersandworms.entities;
 
 import java.util.Random;
 import android.graphics.Point;
+import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
 
 public class Position {
 
-	private final int MAX_LEVEL = 3;
-	private final int DIFFICULTY = 3;
 	
+	private int id;
 	private Point point;
 	private Obstacle obstacle;
-	private Random rand;
 	private ImageView view;
 
-	public Position(int x, int y, int level) {
-		this.rand = new  Random();
+	public Position(int id, int x, int y) {
+		this.id = id;
 		this.point = new Point(x, y);
-		int randomObstacle = rand.nextInt((MAX_LEVEL + 1 - level)
-				* DIFFICULTY);
-		this.obstacle = (randomObstacle == 0) ? Obstacle.BAZOOKA : Obstacle.NONE;
+		this.obstacle = Obstacle.NONE;
+	}
+	
+	public int getId(){
+		return this.id;
 	}
 	
 	public void setView(ImageView view){
