@@ -1,10 +1,12 @@
 package com.project.laddersandworms;
 
 import android.app.Activity;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.Paint;
 import android.os.Bundle;
 import android.os.Handler;
-import android.os.Message;
-import android.util.Log;
 import android.view.Menu;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -28,7 +30,7 @@ public class MainActivity extends Activity implements OnClickListener {
 		imageViewDice = (ImageView) findViewById(R.id.imageViewDice);
 		imageViewPlayerSoldier = (ImageView) findViewById(R.id.imageViewPlayer);
 		imageViewPlayerPC = (ImageView) findViewById(R.id.imageViewPC);
-		imageViewTurn = (ImageView) findViewById(R.id.imageViewTurn);
+		imageViewTurn = (ImageView) findViewById(R.id.imageViewTurn);;
 		imageViewDice.setOnClickListener(this);
 		_controller = Game.getInstance();
 		_controller.setView(this);
@@ -38,6 +40,7 @@ public class MainActivity extends Activity implements OnClickListener {
 			e.printStackTrace();
 		}
 	}
+
 
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
@@ -72,13 +75,15 @@ public class MainActivity extends Activity implements OnClickListener {
 	@Override
 	public void onClick(View v) {
 		if (v.getId() == R.id.imageViewDice) {
+
 			try {
 				_controller.rollDice();
+
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			} catch (InvalidPlayerException e) {
 				e.printStackTrace();
-			}
+}
 		}
 	}
 }

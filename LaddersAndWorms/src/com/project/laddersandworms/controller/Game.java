@@ -4,7 +4,9 @@ import java.util.ArrayList;
 import java.util.Observable;
 import java.util.Observer;
 import java.util.Random;
-
+import java.util.Timer;
+import java.util.TimerTask;
+import android.annotation.SuppressLint;
 import android.graphics.Color;
 import android.graphics.Point;
 import android.media.AudioManager;
@@ -13,10 +15,13 @@ import android.media.SoundPool.OnLoadCompleteListener;
 import android.os.AsyncTask;
 import android.os.Handler;
 import android.util.Log;
+import android.view.animation.Animation;
+import android.view.animation.Animation.AnimationListener;
+import android.view.animation.LinearInterpolator;
+import android.view.animation.RotateAnimation;
 import android.widget.ImageView;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
-
 import com.project.laddersandworms.MainActivity;
 import com.project.laddersandworms.R;
 import com.project.laddersandworms.entities.Board;
@@ -33,10 +38,8 @@ public class Game implements Observer, OnLoadCompleteListener {
 	private final String RAW_IMAGE = "drawable/dice_";
 	private final String RAW_SOUNDS = "raw/sound_dice_";
 	private final int NUMBER_OF_PLAYERS = 2;
-	private final int TURN_DELAY = 1500;
-	
-	public static Object mutex = new Object();
-
+	private final int ANIMATION_DELAY = 1500;
+	private final int TURN_DELAY = 2500;
 	private Player _currentPlayer;
 	private Dice _dice;
 	private ArrayList<Player> _players;
@@ -45,19 +48,19 @@ public class Game implements Observer, OnLoadCompleteListener {
 	private SoundPool _soundPool;
 
 	public enum Level {
-	    EASY(1), MEDIUM(2), HARD(3);
+		EASY(1), MEDIUM(2), HARD(3);
 
-	    private int numVal;
+		private int numVal;
 
-	    Level(int numVal) {
-	        this.numVal = numVal;
-	    }
+		Level(int numVal) {
+			this.numVal = numVal;
+		}
 
-	    public int getNumVal() {
-	        return numVal;
-	    }
+		public int getNumVal() {
+			return numVal;
+		}
 	}
-	
+
 	private Game() {
 		this._players = new ArrayList<Player>(NUMBER_OF_PLAYERS);
 		this._dice = new Dice();
@@ -88,7 +91,8 @@ public class Game implements Observer, OnLoadCompleteListener {
 		addPlayer(new Player("Dor", Player.Type.MACHINE));
 		for (Player p : _players) {
 			p.setPosition(1);
-			setImagePosition(_view.getPlayerView(p.getType()), _board.getPointnAt(p.getPosition()));
+			setImagePosition(_view.getPlayerView(p.getType()),
+					_board.getPointnAt(p.getPosition()));
 		}
 		setActivePlayter(_players.get(0));
 	}
@@ -111,7 +115,8 @@ public class Game implements Observer, OnLoadCompleteListener {
 		return _board.getPositionAt(pos).getObstacle() == obs;
 	}
 
-	private boolean handlePositionAction(Player player) throws InvalidPlayerException {
+	private boolean handlePositionAction(Player player)
+			throws InvalidPlayerException {
 		if (positionHasObstacle(player.getPosition(), Obstacle.BAZOOKA)) {
 			Position pos = _board.getPositionAt(player.getPosition());
 			Log.i("Worms", player.getName() + " stepped on a bazooka!");
@@ -121,12 +126,13 @@ public class Game implements Observer, OnLoadCompleteListener {
 		}
 		return false;
 	}
-	
-	private void hitRival() throws InvalidPlayerException{
+
+	private void hitRival() throws InvalidPlayerException {
 		Player rival = _players.get((_players.indexOf(_currentPlayer) + 1)
 				% NUMBER_OF_PLAYERS);
 		int moves = _currentPlayer.hitRival();
-		Log.i("Worms", _currentPlayer.getName() + " hit the rival with " + moves);
+		Log.i("Worms", _currentPlayer.getName() + " hit the rival with "
+				+ moves);
 		movePlayer(rival, moves);
 	}
 
@@ -208,35 +214,37 @@ public class Game implements Observer, OnLoadCompleteListener {
 		}, 250);
 	}
 
-	public void movePlayer(final Player player, int moves) throws InvalidPlayerException {
+	public void movePlayer(final Player player, int moves)
+			throws InvalidPlayerException {
 		final ImageView currentView = _view.getPlayerView(player.getType());
 		if (currentView == null) {
 			throw new InvalidPlayerException();
 		}
 		final int lastPosition = player.getPosition();
-		player.setPosition(player.getPosition()	+ moves);
+		player.setPosition(player.getPosition() + moves);
 		final int currentPosition = player.getPosition();
-//		final Point playerPosition = _board.getPositionAt(
-//				player.getPosition()).getPoint();
+		// final Point playerPosition = _board.getPositionAt(
+		// player.getPosition()).getPoint();
 		_view.getHandler().post(new Runnable() {
-			
+
 			@Override
 			public void run() {
-				Log.i("Worms", "moving player " + player.getName() + " to " + player.getPosition());
-				//setImagePosition(currentView, playerPosition);
+				Log.i("Worms", "moving player " + player.getName() + " to "
+						+ player.getPosition());
+				// setImagePosition(currentView, playerPosition);
 				try {
-					moveImage(currentView,lastPosition,currentPosition);
+					moveImage(currentView, lastPosition, currentPosition);
 				} catch (InterruptedException e1) {
 					// TODO Auto-generated catch block
 					e1.printStackTrace();
 				}
 				try {
-					if (handlePositionAction(player)){
+					if (handlePositionAction(player)) {
 						return;
 					}
 				} catch (InvalidPlayerException e) {
 					e.printStackTrace();
-				}	
+				}
 				player.notifyObservers();
 			}
 		});
@@ -264,7 +272,7 @@ public class Game implements Observer, OnLoadCompleteListener {
 	public void setImagePosition(final ImageView img, final float x,
 			final float y) {
 		img.post(new Runnable() {
-			
+
 			@Override
 			public void run() {
 				img.setX(x);
@@ -272,53 +280,20 @@ public class Game implements Observer, OnLoadCompleteListener {
 			}
 		});
 	}
-	
-	public void moveImage(final ImageView img, int lastPosistion, int currentPosition) throws InterruptedException{
-		int sourceX = _board.getPointnAt(lastPosistion).x;
-		int sourceY = _board.getPointnAt(lastPosistion).y;
+
+	@SuppressLint("NewApi")
+	public void moveImage(final ImageView img, int lastPosistion,
+			int currentPosition) throws InterruptedException {
 		int destenationX = _board.getPointnAt(currentPosition).x;
 		int destenationY = _board.getPointnAt(currentPosition).y;
-		final int dx = (destenationX - sourceX)/10;
-		final int dy = (destenationY - sourceY)/10;
-		new AsyncTask<Integer, Integer, Integer>() {
+		img.animate().x(destenationX).setDuration(ANIMATION_DELAY);
+		img.animate().y(destenationY).setDuration(ANIMATION_DELAY);
 
-			@Override
-			protected void onPostExecute(Integer result) {
-				// TODO Auto-generated method stub
-				super.onPostExecute(result);
-			}
-
-			@Override
-			protected Integer doInBackground(Integer... params) {
-				for (int i = 0;i < 6;i++){
-					int posX = params[0];
-					int posY = params[1];
-					posX += dx;
-					posY += dy;
-					onProgressUpdate(posX, posY);
-					try {
-						Thread.sleep(50);
-					} catch (InterruptedException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
-				}
-				return null;
-			}
-
-			@Override
-			protected void onProgressUpdate(Integer... values) {
-				super.onProgressUpdate(values);
-				setImagePosition(img ,new Point(values[0], values[1]));
-
-			}
-		}.execute(sourceX,sourceY);
-		
 	}
 
 	public void setImagePosition(final ImageView img, final Point pos) {
 		img.post(new Runnable() {
-			
+
 			@Override
 			public void run() {
 				img.setX(pos.x);
@@ -331,25 +306,37 @@ public class Game implements Observer, OnLoadCompleteListener {
 		this._currentPlayer = p;
 	}
 
+	@SuppressLint("NewApi")
 	@Override
 	public void update(Observable observable, Object data) {
-		try {
-			Thread.sleep(TURN_DELAY);
+			RotateAnimation anim = new RotateAnimation(0f, 360f,
+					_view.getDiceView().getWidth()/2, _view.getDiceView().getHeight()/2);
+		    anim.setInterpolator(new LinearInterpolator());
+		    anim.setRepeatCount(Animation.ABSOLUTE);
+		    anim.setDuration(700);
+
+			_view.getDiceView().setAnimation(anim);			
+			
 			if (_currentPlayer.getPosition() == Board.getFinalPosition()){
 				playSound(R.raw.sound_victory);
 			}
-			switchPlayer();		
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		} catch (InvalidPlayerException e) {
-			e.printStackTrace();
-		}
-
+			_view.getHandler().postDelayed(new Runnable() {
+				
+				@Override
+				public void run() {
+					try {
+						switchPlayer();
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					} catch (InvalidPlayerException e) {
+						e.printStackTrace();
+					}
+				}
+			}, TURN_DELAY);	
 	}
 
 	@Override
 	public void onLoadComplete(SoundPool soundPool, int sampleId, int status) {
 		soundPool.play(sampleId, 1, 1, 0, 0, 1);
 	}
-
 }
