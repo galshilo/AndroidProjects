@@ -3,22 +3,18 @@ package com.project.laddersandworms.controller;
 import java.util.ArrayList;
 import java.util.Observable;
 import java.util.Observer;
-import java.util.Random;
-import java.util.Timer;
-import java.util.TimerTask;
 import android.annotation.SuppressLint;
 import android.graphics.Color;
 import android.graphics.Point;
 import android.media.AudioManager;
 import android.media.SoundPool;
 import android.media.SoundPool.OnLoadCompleteListener;
-import android.os.AsyncTask;
-import android.os.Handler;
 import android.util.Log;
+import android.view.View;
 import android.view.animation.Animation;
-import android.view.animation.Animation.AnimationListener;
-import android.view.animation.LinearInterpolator;
+import android.view.animation.AlphaAnimation;
 import android.view.animation.RotateAnimation;
+import android.view.animation.ScaleAnimation;
 import android.widget.ImageView;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
@@ -38,8 +34,9 @@ public class Game implements Observer, OnLoadCompleteListener {
 	private final String RAW_IMAGE = "drawable/dice_";
 	private final String RAW_SOUNDS = "raw/sound_dice_";
 	private final int NUMBER_OF_PLAYERS = 2;
-	private final int ANIMATION_DELAY = 1500;
+	private final int ANIMATION_DELAY = 1000;
 	private final int TURN_DELAY = 2500;
+	private final int DICE_DELAY = 700;
 	private Player _currentPlayer;
 	private Dice _dice;
 	private ArrayList<Player> _players;
@@ -47,6 +44,7 @@ public class Game implements Observer, OnLoadCompleteListener {
 	private Board _board;
 	private SoundPool _soundPool;
 
+	
 	public enum Level {
 		EASY(1), MEDIUM(2), HARD(3);
 
@@ -81,11 +79,22 @@ public class Game implements Observer, OnLoadCompleteListener {
 		this._view = view;
 	}
 
+	public MainActivity GetView(){
+		return this._view;
+	}
+	
 	public void init() throws InvalidPlayerException {
 		initPlayers();
 		initObstacles();
+		initFinishLine();
+		playSound(R.raw.sound_startround);
 	}
 
+	private void initFinishLine(){
+		drawImage(_board.getPositionAt(Board.getFinalPosition()), 
+				generateImageView(R.drawable.img_finish));
+	}
+	
 	private void initPlayers() throws InvalidPlayerException {
 		addPlayer(new Player("Gal", Player.Type.HUMAN));
 		addPlayer(new Player("Dor", Player.Type.MACHINE));
@@ -94,7 +103,7 @@ public class Game implements Observer, OnLoadCompleteListener {
 			setImagePosition(_view.getPlayerView(p.getType()),
 					_board.getPointnAt(p.getPosition()));
 		}
-		setActivePlayter(_players.get(0));
+		setActivePlayer(_players.get(0));
 	}
 
 	public void rollDice() throws InterruptedException, InvalidPlayerException {
@@ -106,62 +115,100 @@ public class Game implements Observer, OnLoadCompleteListener {
 	private void animateDice() {
 		int soundResource = getResourceId(RAW_SOUNDS + _dice.getSound());
 		playSound(soundResource);
+		rotateDice();	
 		_dice.roll();
 		_view.getDiceView().setImageResource(
 				getResourceId(RAW_IMAGE + _dice.getValue()));
+	}
+	
+	private void rotateDice(){
+		RotateAnimation anim = new RotateAnimation(0f, 360f,
+				_view.getDiceView().getWidth()/2, _view.getDiceView().getHeight()/2);
+	    anim.setRepeatCount(Animation.ABSOLUTE);
+	    anim.setDuration(DICE_DELAY);
+	    _view.getDiceView().setAnimation(anim);
 	}
 
 	private boolean positionHasObstacle(int pos, Obstacle obs) {
 		return _board.getPositionAt(pos).getObstacle() == obs;
 	}
 
-	private boolean handlePositionAction(Player player)
-			throws InvalidPlayerException {
+	private boolean handlePositionAction(Player player) throws InvalidPlayerException {
 		if (positionHasObstacle(player.getPosition(), Obstacle.BAZOOKA)) {
-			Position pos = _board.getPositionAt(player.getPosition());
 			Log.i("Worms", player.getName() + " stepped on a bazooka!");
-			pos.freeObstacle();
-			hitRival();
+			_view.getHandler().postDelayed(new Runnable() {
+				
+				@Override
+				public void run() {
+					try {
+						hitRival();
+					} catch (InvalidPlayerException e) {
+						e.printStackTrace();
+					}
+				}
+			}, ANIMATION_DELAY);
+
 			return true;
 		}
 		return false;
 	}
 
+	@SuppressLint("NewApi")
 	private void hitRival() throws InvalidPlayerException {
-		Player rival = _players.get((_players.indexOf(_currentPlayer) + 1)
+		final Player rivalPlayer = _players.get((_players.indexOf(_currentPlayer) + 1)
 				% NUMBER_OF_PLAYERS);
-		int moves = _currentPlayer.hitRival();
-		Log.i("Worms", _currentPlayer.getName() + " hit the rival with "
-				+ moves);
-		movePlayer(rival, moves);
+		final int steps = _currentPlayer.hitRival();
+		final Position  bazookaPosition = _board.getPositionAt(_currentPlayer.getPosition());
+		final ImageView bazookaView = _board.getPositionAt(_currentPlayer.getPosition()).getView();
+		final Point rivalPosition = _board.getPositionAt(rivalPlayer.getPosition()).getPoint();
+		playSound(R.raw.sound_shoot);
+		bazookaView.animate().x(rivalPosition.x).setDuration(ANIMATION_DELAY  * 2);
+		bazookaView.animate().y(rivalPosition.y).setDuration(ANIMATION_DELAY * 2);
+		bazookaView.animate().rotation(1080).setDuration(ANIMATION_DELAY * 2);
+		Log.i("Worms", _currentPlayer.getName() + " hit the rival with " + steps);
+		_view.getHandler().postDelayed(new Runnable() {
+			
+			@Override
+			public void run() {
+				bazookaPosition.freeObstacle();
+				try {
+					movePlayer(rivalPlayer, steps);
+				} catch (InvalidPlayerException e) {}
+			}
+		}, ANIMATION_DELAY * 3);
 	}
 
-	public void switchPlayer() throws InterruptedException,
-			InvalidPlayerException {
-		_currentPlayer = _players.get((_players.indexOf(_currentPlayer) + 1)
-				% NUMBER_OF_PLAYERS);
+	public void switchPlayer() throws InterruptedException,	InvalidPlayerException {
+		_currentPlayer = _players.get((_players.indexOf(_currentPlayer) + 1) % NUMBER_OF_PLAYERS);
 
-		setImage(
-				_view.getTurnView(),
-				_currentPlayer.getType() == Type.HUMAN ? R.drawable.soldier_player
-						: R.drawable.soldier_pc);
+		setImage(_view.getTurnView(),_currentPlayer.getType() == Type.HUMAN ?
+				R.drawable.soldier_player :  R.drawable.soldier_pc);
 		highlightTurn();
 
 		if (_currentPlayer.isMachine()) {
 			rollDice();
+		}
+		else {
+			_view.getDiceView().setEnabled(true);
 		}
 	}
 
 	private void setImage(final ImageView view, final int resource) {
 		view.setImageResource(resource);
 	}
-
+	
+	/***
+	 * Generates an ImageView object with an image resource
+	 * @param resource image id resource
+	 * @return ImageView object
+	 */
 	private ImageView generateImageView(int resource) {
 		ImageView view = new ImageView(_view);
 		setImage(view, resource);
 		return view;
 	}
 
+	@SuppressLint("NewApi")
 	private void initObstacles() {
 		for (Position pos : _board.getPositions()) {
 			if (pos != null) {
@@ -173,23 +220,40 @@ public class Game implements Observer, OnLoadCompleteListener {
 		}
 	}
 
-	private void drawImage(final Position pos, final ImageView view) {
+	/***
+	 * draw a given ImageView object to a specific view location
+	 * @param pos Position object with x and y values
+	 * @param img ImageView object 
+	 */
+	private void drawImage(final Position pos, final ImageView img) {
+		final int imageSize = 30;
 		final RelativeLayout layout = (RelativeLayout) _view
 				.findViewById(R.id.layoutGameBoard);
-		view.setMaxHeight(30);
-		view.setMaxWidth(30);
-		setImagePosition(view, pos.getPoint());
+		img.setMaxHeight(imageSize);
+		img.setMaxWidth(imageSize);
+		setImagePosition(img, pos.getPoint());
 		layout.post(new Runnable() {
 
 			@Override
 			public void run() {
-				layout.addView(view);
-				layout.invalidate();
+				fireFadeInAnimation(img, ANIMATION_DELAY * 2);
+				layout.addView(img);
 				Log.i("Worms", "Added bazooka to point: " + pos.getId());
 			}
 		});
 	}
 
+	/***
+	 * apply fade-in animation on a view object
+	 * @param view view object to perform the effect on
+	 * @param duration animation duration
+	 */
+	private void fireFadeInAnimation(View view, int duration){
+		AlphaAnimation anim = new AlphaAnimation(0.0f, 1.0f);
+		anim.setDuration(duration);
+		view.startAnimation(anim);
+	}
+	
 	private void generateWeapon() {
 		int square = _board.generateWeapon();
 		if (square == -1) // weapon was not added
@@ -198,6 +262,7 @@ public class Game implements Observer, OnLoadCompleteListener {
 		ImageView view = generateImageView(R.drawable.img_bazooka);
 		drawImage(_board.getPositionAt(square), view);
 		_board.getPositionAt(square).setView(view);
+		playSound(R.raw.sound_teleport);
 	}
 
 	private void highlightTurn() {
@@ -214,37 +279,28 @@ public class Game implements Observer, OnLoadCompleteListener {
 		}, 250);
 	}
 
-	public void movePlayer(final Player player, int moves)
-			throws InvalidPlayerException {
+	public void movePlayer(final Player player, int steps) throws InvalidPlayerException {
 		final ImageView currentView = _view.getPlayerView(player.getType());
-		if (currentView == null) {
+		if (currentView == null) 
 			throw new InvalidPlayerException();
-		}
-		final int lastPosition = player.getPosition();
-		player.setPosition(player.getPosition() + moves);
+		
+		final int basePosition = player.getPosition(); 
+		player.setPosition(player.getPosition() + steps);
+		
 		final int currentPosition = player.getPosition();
-		// final Point playerPosition = _board.getPositionAt(
-		// player.getPosition()).getPoint();
 		_view.getHandler().post(new Runnable() {
 
 			@Override
 			public void run() {
-				Log.i("Worms", "moving player " + player.getName() + " to "
-						+ player.getPosition());
-				// setImagePosition(currentView, playerPosition);
+				Log.i("Worms", "moving player " + player.getName() + " to "+ player.getPosition());
 				try {
-					moveImage(currentView, lastPosition, currentPosition);
-				} catch (InterruptedException e1) {
-					// TODO Auto-generated catch block
-					e1.printStackTrace();
-				}
+					fireImageMovementAnimation(currentView, basePosition, currentPosition);
+				} catch (InterruptedException e1) {}
 				try {
 					if (handlePositionAction(player)) {
 						return;
 					}
-				} catch (InvalidPlayerException e) {
-					e.printStackTrace();
-				}
+				} catch (InvalidPlayerException e) {}
 				player.notifyObservers();
 			}
 		});
@@ -282,13 +338,56 @@ public class Game implements Observer, OnLoadCompleteListener {
 	}
 
 	@SuppressLint("NewApi")
-	public void moveImage(final ImageView img, int lastPosistion,
-			int currentPosition) throws InterruptedException {
-		int destenationX = _board.getPointnAt(currentPosition).x;
-		int destenationY = _board.getPointnAt(currentPosition).y;
-		img.animate().x(destenationX).setDuration(ANIMATION_DELAY);
-		img.animate().y(destenationY).setDuration(ANIMATION_DELAY);
+	public void fireImageMovementAnimation(final ImageView img, int fromPosition, int toPosition) throws InterruptedException {
+		int distance = Math.abs(toPosition - fromPosition);
+		final int delay = ANIMATION_DELAY / distance;
+		int delta = (toPosition - fromPosition) / distance;
+		int tempPosition = fromPosition;
+		
+		for (int i = 0;i < distance;i++){
+			tempPosition += delta;
+			final int newTempPosition = tempPosition;// final attribute needed to use inside postDelayed
+			final int destX = _board.getPointnAt(tempPosition).x;
+			final int destY = _board.getPointnAt(tempPosition).y;
+			_view.getHandler().postDelayed(new Runnable() {
+				
+				@Override
+				public void run() {
+					img.animate().x(destX).setDuration(delay);
+					img.animate().y(destY).setDuration(delay);
+					setImageDirection(img ,newTempPosition);
+				}
+			}, delay * i);
+		}
+	}
 
+	private void setImageDirection(ImageView img, int tempPosition) {// FUCKING UGLY FUNCTION!!!!!!!!!!!1
+		if (img == null) 
+			return;
+		
+		if ((Math.ceil(tempPosition / _board.getColumsNumber())) % 2 == 1){
+			switch (_currentPlayer.getType()){ 
+				case MACHINE:
+					setImage(img, R.drawable.soldier_pc);
+					break;
+				case HUMAN:
+					setImage(img, R.drawable.soldier_player);
+					break;
+				default:
+			}	
+		}
+		else {
+			switch (_currentPlayer.getType()){ 
+				case MACHINE:
+					setImage(img, R.drawable.soldier_pc_fliped);
+					break;
+				case HUMAN:
+					setImage(img, R.drawable.soldier_player_fliped);
+					break;
+				default:
+			}
+		}
+		
 	}
 
 	public void setImagePosition(final ImageView img, final Point pos) {
@@ -302,37 +401,29 @@ public class Game implements Observer, OnLoadCompleteListener {
 		});
 	}
 
-	public void setActivePlayter(Player p) {
+	public void setActivePlayer(Player p) {
 		this._currentPlayer = p;
 	}
 
 	@SuppressLint("NewApi")
 	@Override
 	public void update(Observable observable, Object data) {
-			RotateAnimation anim = new RotateAnimation(0f, 360f,
-					_view.getDiceView().getWidth()/2, _view.getDiceView().getHeight()/2);
-		    anim.setInterpolator(new LinearInterpolator());
-		    anim.setRepeatCount(Animation.ABSOLUTE);
-		    anim.setDuration(700);
+		if (_currentPlayer.getPosition() == Board.getFinalPosition()) {
+			playSound(R.raw.sound_victory);
+		}
+		_view.getHandler().postDelayed(new Runnable() {
 
-			_view.getDiceView().setAnimation(anim);			
-			
-			if (_currentPlayer.getPosition() == Board.getFinalPosition()){
-				playSound(R.raw.sound_victory);
-			}
-			_view.getHandler().postDelayed(new Runnable() {
-				
-				@Override
-				public void run() {
-					try {
-						switchPlayer();
-					} catch (InterruptedException e) {
-						e.printStackTrace();
-					} catch (InvalidPlayerException e) {
-						e.printStackTrace();
-					}
+			@Override
+			public void run() {
+				try {
+					switchPlayer();
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				} catch (InvalidPlayerException e) {
+					e.printStackTrace();
 				}
-			}, TURN_DELAY);	
+			}
+		}, TURN_DELAY);
 	}
 
 	@Override
