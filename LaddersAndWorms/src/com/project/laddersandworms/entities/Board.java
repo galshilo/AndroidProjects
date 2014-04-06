@@ -59,6 +59,10 @@ public class Board {
 		return -1;
 	}
 
+	public int getColumsNumber(){
+		return BOARD_COLUMNS;
+	}
+	
 	public static int getFinalPosition() {
 		return BOARD_ROWS * BOARD_COLUMNS;
 	}

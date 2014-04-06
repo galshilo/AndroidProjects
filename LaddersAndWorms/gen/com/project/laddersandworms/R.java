@@ -41,10 +41,13 @@ public final class R {
         public static final int ic_launcher=0x7f020011;
         public static final int ic_worm=0x7f020012;
         public static final int img_bazooka=0x7f020013;
-        public static final int img_title=0x7f020014;
-        public static final int img_title_soldier=0x7f020015;
-        public static final int soldier_pc=0x7f020016;
-        public static final int soldier_player=0x7f020017;
+        public static final int img_finish=0x7f020014;
+        public static final int img_title=0x7f020015;
+        public static final int img_title_soldier=0x7f020016;
+        public static final int soldier_pc=0x7f020017;
+        public static final int soldier_pc_fliped=0x7f020018;
+        public static final int soldier_player=0x7f020019;
+        public static final int soldier_player_fliped=0x7f02001a;
     }
     public static final class id {
         public static final int action_settings=0x7f09000b;
@@ -73,7 +76,10 @@ public final class R {
         public static final int sound_dice_2=0x7f040001;
         public static final int sound_dice_3=0x7f040002;
         public static final int sound_dice_4=0x7f040003;
-        public static final int sound_victory=0x7f040004;
+        public static final int sound_shoot=0x7f040004;
+        public static final int sound_startround=0x7f040005;
+        public static final int sound_teleport=0x7f040006;
+        public static final int sound_victory=0x7f040007;
     }
     public static final class string {
         public static final int action_settings=0x7f060001;
