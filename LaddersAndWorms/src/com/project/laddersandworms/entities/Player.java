@@ -2,64 +2,67 @@ package com.project.laddersandworms.entities;
 import java.util.Observable;
 import java.util.Random;
 
+import com.project.laddersandworms.controller.Game;
+
 import android.util.Log;
 
 public class Player extends Observable {
 	
-	final int MAX_HIT_MOVES = 30;
+	private String				mName;
+	private int 				mPosition;
+	private Type 				mType;
+	private Random 				mRand;
+	private Game.Level 			mLevel;
 	
 	public enum Type { HUMAN, MACHINE }
-	private String name;
-	private int position;
-	private Type type;
-	private Random rand;
-	
-	public Player(String name, Type type){
-		this.position = 1;
-		this.name = name;
-		this.type = type;
-		this.rand = new Random();
+
+	public Player(String name, Type type, Game.Level level){
+		this.mPosition = 1;
+		this.mName = name;
+		this.mType = type;
+		this.mRand = new Random();
+		this.mLevel = level;
 	}
 	
 	public int hitRival(){
-		return -(this.rand.nextInt(MAX_HIT_MOVES)+1);
+		return -(this.mRand.nextInt(this.mLevel.getNumVal()*10)+1);
 	}
 
 	public String getName() {
-		return name;
+		return mName;
 	}
 
 	public void setName(String name) {
-		this.name = name;
+		this.mName = name;
 	}
 
 	public int getPosition() {
-		return position;
+		return mPosition;
 	}
 	
 	public Type getType(){
-		return this.type;
+		return this.mType;
 	}
 	
 	public void setType(Type type){
-		this.type = type;
+		this.mType = type;
 	}
 
 	public void setPosition(final int position) {
 		if (position > Board.getFinalPosition()){
 			Log.i("Worms", "Trying to get to outer position: " + position);
-			this.position = Board.getFinalPosition();
+			this.mPosition = Board.getFinalPosition();
 			Log.i("Worms", "Postion was set to :" + Board.getFinalPosition());
 		}else if (position <= 1){
-				this.position = 1;
+				this.mPosition = 1;
 		}else {
-			this.position = position;
+			this.mPosition = position;
 		}
 		setChanged();
 	}
 	
 	public boolean isMachine(){
-		return this.type == Type.MACHINE;
+		return this.mType == Type.MACHINE;
 	}
 
 }

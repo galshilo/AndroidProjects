@@ -1,56 +1,53 @@
 package com.project.laddersandworms.entities;
 
-import java.util.Random;
 import android.graphics.Point;
-import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
 
 public class Position {
-
 	
-	private int id;
-	private Point point;
-	private Obstacle obstacle;
-	private ImageView view;
+	private int 				mId;
+	private Point 				mPoint;
+	private Obstacle			mObstacle;
+	private ImageView 			mView;
 
 	public Position(int id, int x, int y) {
-		this.id = id;
-		this.point = new Point(x, y);
-		this.obstacle = Obstacle.NONE;
+		this.mId = id;
+		this.mPoint = new Point(x, y);
+		this.mObstacle = Obstacle.NONE;
 	}
 	
 	public int getId(){
-		return this.id;
+		return this.mId;
 	}
 	
 	public void setView(ImageView view){
-		this.view = view;
+		this.mView = view;
 	}
 	
 	public ImageView getView(){
-		return this.view;
+		return this.mView;
 	}
 	
 	public Obstacle getObstacle(){
-		return this.obstacle;
+		return this.mObstacle;
 	}
 	
 	public void setPoint(final int x, final int y){
-		this.point.set(x, y);
+		this.mPoint.set(x, y);
 	}
 	
 	public void setObstacle(Obstacle obs){
-		this.obstacle = obs;
+		this.mObstacle = obs;
 	}
 	
 	public Point getPoint(){
-		return this.point;
+		return this.mPoint;
 	}
 	
 	public void freeObstacle(){
-		this.view.setVisibility(View.GONE);
-		this.view.setImageDrawable(null);
+		this.mView.setVisibility(View.GONE);
+		this.mView.setImageDrawable(null);
 		setView(null);
 		setObstacle(Obstacle.NONE);
 	}
